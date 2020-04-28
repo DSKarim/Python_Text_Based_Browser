@@ -1,0 +1,74 @@
+import sys
+import os
+import requests
+from collections import deque
+from bs4 import BeautifulSoup
+from colorama import Fore
+from colorama import init
+init(autoreset=True)
+
+my_stack = deque()
+user_input = ''
+list_of_content = ['p','h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'ul', 'ol', 'li', 'a']
+
+args = sys.argv
+# args = ['', 'tb_tabs']
+try:
+    os.mkdir(args[1])
+except FileExistsError:
+    pass
+
+# write your code here
+while True:
+    user_input_rt = input()
+    if user_input_rt == "exit":
+        break
+    if user_input_rt == "back":
+        if len(my_stack) > 0:
+            my_stack.pop()
+            user_input = my_stack.pop()
+    else:
+        if "https://" in user_input_rt:
+            user_input = user_input_rt
+        else:
+            user_input = "https://" + user_input_rt
+        my_stack.append(user_input)
+
+    if user_input.rfind('.') > 0:
+        new_name = user_input[user_input.find('https://')+8:user_input.rfind('.')]
+    else:
+        new_name = user_input[user_input.find('https://')+8:]
+    new_path = os.path.join(args[1], new_name + '.html')
+
+    if os.path.isfile(new_path):
+        with open(new_path, "r", encoding="utf-8") as web_file:
+            for line in web_file:
+                print(line.strip())
+    else:
+        try:
+            r = requests.get(user_input)
+            soup = BeautifulSoup(r.content, 'html.parser')
+            main_site = soup.children
+            html = None
+            body = None
+            for element in main_site:
+                if element.name == 'html':
+                    html = element
+                    break
+            for element in list(html.children):
+                if element.name == 'body':
+                    body = element
+                    break
+            all_text = []
+            for tag in body.find_all(list_of_content):
+                if tag.name == "a":
+                    all_text.append(tag.get_text().strip().replace('\n', ' '))
+                    print(Fore.BLUE + tag.get_text().strip().replace('\n', ' '))
+                else:
+                    all_text.append(tag.get_text().strip().replace('\n', ' '))
+                    print(tag.get_text().strip().replace('\n', ' '))
+            with open(new_path, "w", encoding="utf-8") as web_file:
+                for line in all_text:
+                    web_file.write(line + '\n')
+        except requests.exceptions.ConnectionError:
+            print("Error: Incorrect URL")
